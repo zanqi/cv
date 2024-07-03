@@ -162,3 +162,6 @@ cython_debug/
 #.idea/
 
 .env/
+notebooks/Unit 2 - Convolutional Neural Networks/data/
+cortical/
+.DS_Store
