@@ -10,7 +10,8 @@ import argparse
 from PIL import Image
 import pandas as pd
 from datasets import load_dataset
-
+import torch
+from torch.utils.data import DataLoader
 
 
 def createFolder(split):
@@ -53,15 +54,33 @@ def gen(num, split):
         bc = ((2 * b1 - r1 - g1) - (2 * b2 - r2 - g2) + 1020) / 2040
         P = (p + 7) / 14
         Ro = r / 179
-        data.append([f'{i:>04}.png', c, gc, bc, P, Ro])
+        data.append([f"{i:>04}.png", c, gc, bc, P, Ro])
         o.save(f"cortical/{split}/{i:>04}.png")
-    df = pd.DataFrame(data, columns=['file_name', 'c', 'gc', 'bc', 'p', 'ro'])
-    df.to_csv(f'cortical/{split}/metadata.csv', index=False)
+    df = pd.DataFrame(data, columns=["file_name", "c", "gc", "bc", "p", "ro"])
+    df.to_csv(f"cortical/{split}/metadata.csv", index=False)
+
 
 def upload():
     dataset = load_dataset("cortical", data_dir="")
     print(dataset)
     dataset.push_to_hub("cortical_data")
+
+
+def get_data():
+    ds = load_dataset("keylazy/cortical_data").with_format("torch")
+    ds = ds.map(
+        lambda e: {
+            "y": torch.tensor([e["c"], e["gc"], e["bc"], e["p"], e["ro"]]),
+            "x": e["image"].reshape((-1, )) / 255,
+        },
+        remove_columns=["c", "gc", "bc", "p", "ro", "image"],
+    )
+    train = ds["train"]
+    val = ds["test"]
+    trdl = DataLoader(train, batch_size=32, shuffle=True)
+    valdl = DataLoader(val, batch_size=32, shuffle=True)
+    return trdl, valdl
+
 
 def main(arguments):
 
@@ -83,7 +102,7 @@ def main(arguments):
 
     gen(10000, "train")
     gen(5000, "test")
-    # upload()
+    upload()
 
 
 if __name__ == "__main__":
