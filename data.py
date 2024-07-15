@@ -11,7 +11,7 @@ from PIL import Image
 import pandas as pd
 from datasets import load_dataset
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 
 
 def createFolder(split):
@@ -66,19 +66,22 @@ def upload():
     dataset.push_to_hub("cortical_data")
 
 
-def get_data():
+def get_data(flatten=False):
     ds = load_dataset("keylazy/cortical_data").with_format("torch")
     ds = ds.map(
         lambda e: {
             "y": torch.tensor([e["c"], e["gc"], e["bc"], e["p"], e["ro"]]),
-            "x": e["image"].reshape((-1, )) / 255,
+            "x": (e["image"].reshape((-1,)) if flatten else e["image"]) / 255,
         },
         remove_columns=["c", "gc", "bc", "p", "ro", "image"],
     )
     train = ds["train"]
     val = ds["test"]
-    trdl = DataLoader(train, batch_size=32, shuffle=True)
-    valdl = DataLoader(val, batch_size=32, shuffle=True)
+    trdl = DataLoader(
+        TensorDataset(train["x"], train["y"]), batch_size=32, shuffle=True
+    )
+    valdl = DataLoader(TensorDataset(val["x"], val["y"]), batch_size=32, shuffle=True)
+
     return trdl, valdl
 
 
